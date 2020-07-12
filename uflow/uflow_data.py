@@ -113,7 +113,7 @@ def make_train_iterator(
           resize_gt_flow=resize_gt_flow,
           seed=seed,
       )
-    elif 'chairs' in data_format:
+    elif 'chairs' in data_format or 'custom' in data_format:
       dataset = flow_dataset.make_dataset(
           path,
           mode=mode,
