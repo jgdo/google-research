@@ -281,10 +281,10 @@ def complete_paper_plot(plot_dir,
                         image1,
                         image2,
                         flow_uv,
-                        ground_truth_flow_uv,
-                        flow_valid_occ,
-                        predicted_occlusion,
-                        ground_truth_occlusion,
+                        ground_truth_flow_uv = None,
+                        flow_valid_occ = None,
+                        predicted_occlusion = None,
+                        ground_truth_occlusion = None,
                         frame_skip=None):
   """Plots rgb image, flow, occlusions, ground truth, all as separate images."""
 
@@ -300,7 +300,6 @@ def complete_paper_plot(plot_dir,
     plt.clf()
 
   flow_uv = -flow_uv[:, :, ::-1]
-  ground_truth_flow_uv = -ground_truth_flow_uv[:, :, ::-1]
   plt.figure()
   plt.clf()
 
@@ -310,23 +309,26 @@ def complete_paper_plot(plot_dir,
   plt.imshow(flow_to_rgb(flow_uv))
   save_fig('predicted_flow', plot_dir)
 
-  plt.imshow(flow_to_rgb(ground_truth_flow_uv * flow_valid_occ))
-  save_fig('ground_truth_flow', plot_dir)
+  if ground_truth_flow_uv is not None:
+      ground_truth_flow_uv = -ground_truth_flow_uv[:, :, ::-1]
+      plt.imshow(flow_to_rgb(ground_truth_flow_uv * flow_valid_occ))
+      save_fig('ground_truth_flow', plot_dir)
 
-  endpoint_error = np.sum(
-      (ground_truth_flow_uv - flow_uv)**2, axis=-1, keepdims=True)**0.5
-  plt.imshow(
-      (endpoint_error * flow_valid_occ)[:, :, 0],
-      cmap='viridis',
-      vmin=0,
-      vmax=40)
-  save_fig('flow_error', plot_dir)
+      endpoint_error = np.sum(
+          (ground_truth_flow_uv - flow_uv)**2, axis=-1, keepdims=True)**0.5
+      plt.imshow(
+          (endpoint_error * flow_valid_occ)[:, :, 0],
+          cmap='viridis',
+          vmin=0,
+          vmax=40)
+      save_fig('flow_error', plot_dir)
 
   plt.imshow((predicted_occlusion[:, :, 0]) * 255, cmap='Greys')
   save_fig('predicted_occlusion', plot_dir)
 
-  plt.imshow((ground_truth_occlusion[:, :, 0]) * 255, cmap='Greys')
-  save_fig('ground_truth_occlusion', plot_dir)
+  if ground_truth_occlusion is not None:
+      plt.imshow((ground_truth_occlusion[:, :, 0]) * 255, cmap='Greys')
+      save_fig('ground_truth_occlusion', plot_dir)
 
   plt.close('all')
 

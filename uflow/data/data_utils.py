@@ -73,7 +73,7 @@ def parse_data(proto,
         [], tf.string)
 
   if include_flow:
-    context_features['flow_uv'] = tf.io.FixedLenFeature([], tf.string)
+    pass # context_features['flow_uv'] = tf.io.FixedLenFeature([], tf.string)
 
   if include_occlusion:
     context_features['occlusion_mask'] = tf.io.FixedLenFeature([], tf.string)
@@ -100,6 +100,7 @@ def parse_data(proto,
   output = [images]
 
   if include_flow:
+    '''
     flow_uv = deserialize(context_parsed['flow_uv'], tf.float32, 2)
     flow_uv = flow_uv[Ellipsis, ::-1]
     if height is not None and width is not None and resize_gt_flow:
@@ -108,10 +109,14 @@ def parse_data(proto,
       if gt_flow_shape is not None:
         flow_uv.set_shape(gt_flow_shape)
     # To be consistent with uflow internals, we flip the ordering of flow.
+    
     output.append(flow_uv)
     # create valid mask
     flow_valid = tf.ones_like(flow_uv[Ellipsis, :1], dtype=tf.float32)
     output.append(flow_valid)
+    '''
+    output.append([])
+    output.append([])
 
   if include_occlusion:
     occlusion_mask = deserialize(context_parsed['occlusion_mask'], tf.uint8, 1)
@@ -134,6 +139,7 @@ def parse_data(proto,
   if len(output) == 1:
     output = output[0]
 
+  # print("output.shape: ", output.shape)
   return output
 
 
@@ -235,8 +241,8 @@ def evaluate(
     if has_occlusion:
       (image_batch, flow_gt, _, occ_mask_gt) = test_batch
     else:
-      (image_batch, flow_gt, _) = test_batch
-      occ_mask_gt = tf.ones_like(flow_gt[Ellipsis, -1:])
+      (image_batch, _, _) = test_batch
+      # occ_mask_gt = tf.ones_like(flow_gt[Ellipsis, -1:])
     # pylint:disable=cell-var-from-loop
     # pylint:disable=g-long-lambda
     f = lambda: inference_fn(
@@ -249,6 +255,8 @@ def evaluate(
         f, execute_once_before=eval_count == 1)
     inference_times.append(inference_time_in_ms)
 
+    best_thresh = 0.5
+    '''
     if not has_occlusion:
       best_thresh = .5
     else:
@@ -266,8 +274,10 @@ def evaluate(
         all_occlusion_results[thresh]['fp'] += metrics['fp']
         all_occlusion_results[thresh]['tn'] += metrics['tn']
         all_occlusion_results[thresh]['fn'] += metrics['fn']
+    '''
 
     final_flow = flow
+    '''
     endpoint_error_occ = tf.reduce_sum(
         input_tensor=(final_flow - flow_gt)**2, axis=-1, keepdims=True)**0.5
     gt_flow_abs = tf.reduce_sum(
@@ -277,8 +287,11 @@ def evaluate(
                        endpoint_error_occ > 0.05 * gt_flow_abs), 'float32')
     epe_occ.append(tf.reduce_mean(input_tensor=endpoint_error_occ))
     errors_occ.append(tf.reduce_mean(input_tensor=outliers_occ))
+    '''
 
+    print('plot_dir:' + plot_dir)
     if plot_dir and plot_count < num_plots:
+      sys.stdout.write('p')
       plot_count += 1
       mask_thresh = tf.cast(
           tf.math.greater(soft_occlusion_mask, best_thresh), tf.float32)
@@ -288,10 +301,10 @@ def evaluate(
           image_batch[0].numpy(),
           image_batch[1].numpy(),
           final_flow.numpy(),
-          flow_gt.numpy(),
-          np.ones_like(mask_thresh.numpy()),
+          None, # flow_gt.numpy(),
+          None, # np.ones_like(mask_thresh.numpy()),
           1. - mask_thresh.numpy(),
-          1. - occ_mask_gt.numpy().astype('float32'),
+          None, # 1. - occ_mask_gt.numpy().astype('float32'),
           frame_skip=None)
   if progress_bar:
     sys.stdout.write('\n')

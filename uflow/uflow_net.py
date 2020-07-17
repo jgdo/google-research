@@ -314,6 +314,7 @@ class UFlow(object):
       Optical flow for each pixel in image1 pointing to image2.
     """
 
+    # print(images.shape)
     batch_size, seq_len, orig_height, orig_width, image_channels = images.shape.as_list(
     )
 
