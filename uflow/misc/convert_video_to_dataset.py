@@ -22,14 +22,15 @@ from absl import app
 from absl import flags
 import cv2
 import tensorflow as tf
+import itertools
 
 from uflow.data_conversion_scripts import conversion_utils
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string('video_path', '', 'Location of the mp4 video file.')
+flags.DEFINE_multi_string('video_path', '', 'Location of the mp4 video file.')
 flags.DEFINE_string('output_path', '', 'Location to write the video dataset.')
-
+flags.DEFINE_integer('frame_skip', 0, 'Frame skip in dataset.')
 
 def write_data_example(record_writer, image1, image2):
   """Write data example to disk."""
@@ -56,30 +57,35 @@ def write_data_example(record_writer, image1, image2):
   record_writer.write(example.SerializeToString())
 
 
-def convert_video(video_file_path, output_folder):
+def convert_video(video_file_path_list, output_folder, frame_skip):
   """Converts video at video_file_path to a tf.data.dataset at output_folder."""
+  frame_skip = max(frame_skip, 0)
   if not tf.io.gfile.exists(output_folder):
     print('Making new plot directory', output_folder)
     tf.io.gfile.makedirs(output_folder)
   filename = os.path.join(output_folder, 'fvideo@1')
   with tf.io.TFRecordWriter(filename) as record_writer:
-    vidcap = cv2.VideoCapture(video_file_path)
-    success = True
-    count = 0
-    success, image1 = vidcap.read()
-    while 1:
-      success, image2 = vidcap.read()
-      if not success:
-        break
-      tf.compat.v1.logging.info('Read a new frame: %d', count)
-      write_data_example(record_writer, image1, image2)
-      image1 = image2
-      count += 1
-
+      for video_file_path in video_file_path_list:
+        vidcap = cv2.VideoCapture(video_file_path)
+        count = 0
+        success, image1 = vidcap.read()
+        assert success, "Could not read video file: {}".format(video_file_path)
+        for i in itertools.count(start=1, step=1):
+          success, image2 = vidcap.read()
+          if not success:
+            break
+          if i % (frame_skip+1) != 0:
+              tf.compat.v1.logging.info('Skipping frame')
+              continue
+          tf.compat.v1.logging.info('Read a new frame: %d', count)
+          write_data_example(record_writer, image1, image2)
+          image1 = image2
+          count += 1
+        vidcap.release()
 
 def main(unused_argv):
-  convert_video(FLAGS.video_file, FLAGS.output_folder)
-
+  print(FLAGS.video_path)
+  convert_video(FLAGS.video_path, FLAGS.output_path, FLAGS.frame_skip)
 
 if __name__ == '__main__':
   app.run(main)

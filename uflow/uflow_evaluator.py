@@ -45,7 +45,7 @@ def evaluate():
       FLAGS.width,
       progress_bar=True,
       plot_dir=FLAGS.plot_dir,
-      num_plots=50)
+      num_plots=500)
 
   latest_checkpoint = tf.train.latest_checkpoint(FLAGS.checkpoint_dir)
   while 1:

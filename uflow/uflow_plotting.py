@@ -116,6 +116,55 @@ def plot_data(data_it, plot_dir, num_plots):
         save_image_as_png(
             image, os.path.join(plot_dir, '{}_{}_{}.png'.format(i, j, k)))
 
+def bilinear_interpolate(im, x, y):
+    # https://stackoverflow.com/questions/12729228/simple-efficient-bilinear-interpolation-of-images-in-numpy-and-python
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    x0 = np.floor(x).astype(int)
+    x1 = x0 + 1
+    y0 = np.floor(y).astype(int)
+    y1 = y0 + 1
+
+    x0 = np.clip(x0, 0, im.shape[1]-1);
+    x1 = np.clip(x1, 0, im.shape[1]-1);
+    y0 = np.clip(y0, 0, im.shape[0]-1);
+    y1 = np.clip(y1, 0, im.shape[0]-1);
+
+    Ia = im[ y0, x0 ]
+    Ib = im[ y1, x0 ]
+    Ic = im[ y0, x1 ]
+    Id = im[ y1, x1 ]
+
+    wa = (x1-x) * (y1-y)
+    wb = (x1-x) * (y-y0)
+    wc = (x-x0) * (y1-y)
+    wd = (x-x0) * (y-y0)
+
+    wa = np.stack([wa]*3,axis=2)
+    wb = np.stack([wb] * 3, axis=2)
+    wc = np.stack([wc] * 3, axis=2)
+    wd = np.stack([wd] * 3, axis=2)
+
+    return wa*Ia + wb*Ib + wc*Ic + wd*Id
+
+def wrap_flow(input, flow):
+    # input: HxWx3
+    # flow: HxWx2
+
+    H, W, C = input.shape
+
+    x = np.arange(0, W, dtype=flow.dtype)
+    y = np.arange(0, H, dtype=flow.dtype)
+
+    xx, yy = np.meshgrid(x, y)
+    xx += flow[:, :, 0]
+    yy += flow[:, :, 1]
+
+    out = bilinear_interpolate(input, xx, yy)
+    return out
+
 
 def flow_to_rgb(flow):
   """Computes an RGB visualization of a flow field."""
@@ -297,14 +346,17 @@ def complete_paper_plot(plot_dir,
     else:
       filepath = str(index) + '_' + name
       plt.savefig(os.path.join(plot_dir, filepath), bbox_inches='tight')
+    print('save frame ' + str(index))
     plt.clf()
 
   flow_uv = -flow_uv[:, :, ::-1]
   plt.figure()
   plt.clf()
 
-  plt.imshow((image1 + image2) / 2.)
+  wrapped = wrap_flow(image1, flow_uv)
+  plt.imshow(np.concatenate((image1, image2, wrapped), axis = 1))
   save_fig('image_rgb', plot_dir)
+
 
   plt.imshow(flow_to_rgb(flow_uv))
   save_fig('predicted_flow', plot_dir)
@@ -329,6 +381,7 @@ def complete_paper_plot(plot_dir,
   if ground_truth_occlusion is not None:
       plt.imshow((ground_truth_occlusion[:, :, 0]) * 255, cmap='Greys')
       save_fig('ground_truth_occlusion', plot_dir)
+
 
   plt.close('all')
 
