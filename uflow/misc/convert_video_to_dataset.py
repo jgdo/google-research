@@ -65,9 +65,9 @@ def convert_video(video_file_path_list, output_folder, frame_skip):
     tf.io.gfile.makedirs(output_folder)
   filename = os.path.join(output_folder, 'fvideo@1')
   with tf.io.TFRecordWriter(filename) as record_writer:
+      count = 0
       for video_file_path in video_file_path_list:
         vidcap = cv2.VideoCapture(video_file_path)
-        count = 0
         success, image1 = vidcap.read()
         assert success, "Could not read video file: {}".format(video_file_path)
         for i in itertools.count(start=1, step=1):
