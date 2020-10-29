@@ -27,6 +27,10 @@ matplotlib.use('Agg')  # None-interactive plots do not need tk
 import matplotlib.pyplot as plt  # pylint: disable=g-import-not-at-top
 import numpy as np
 import tensorflow as tf
+from absl import flags
+
+FLAGS = flags.FLAGS
+flags.DEFINE_bool('eval_save_flow', True, 'Save flow image when evaluating')
 
 # How much to scale motion magnitude in visualization.
 _FLOW_SCALING_FACTOR = 50.0
@@ -357,31 +361,30 @@ def complete_paper_plot(plot_dir,
   plt.imshow(np.concatenate((image1, image2, wrapped), axis = 1))
   save_fig('image_rgb', plot_dir)
 
+  if FLAGS.eval_save_flow:
+      plt.imshow(flow_to_rgb(flow_uv))
+      save_fig('predicted_flow', plot_dir)
 
-  plt.imshow(flow_to_rgb(flow_uv))
-  save_fig('predicted_flow', plot_dir)
+      if ground_truth_flow_uv is not None:
+          ground_truth_flow_uv = -ground_truth_flow_uv[:, :, ::-1]
+          plt.imshow(flow_to_rgb(ground_truth_flow_uv * flow_valid_occ))
+          save_fig('ground_truth_flow', plot_dir)
 
-  if ground_truth_flow_uv is not None:
-      ground_truth_flow_uv = -ground_truth_flow_uv[:, :, ::-1]
-      plt.imshow(flow_to_rgb(ground_truth_flow_uv * flow_valid_occ))
-      save_fig('ground_truth_flow', plot_dir)
+          endpoint_error = np.sum(
+              (ground_truth_flow_uv - flow_uv)**2, axis=-1, keepdims=True)**0.5
+          plt.imshow(
+              (endpoint_error * flow_valid_occ)[:, :, 0],
+              cmap='viridis',
+              vmin=0,
+              vmax=40)
+          save_fig('flow_error', plot_dir)
 
-      endpoint_error = np.sum(
-          (ground_truth_flow_uv - flow_uv)**2, axis=-1, keepdims=True)**0.5
-      plt.imshow(
-          (endpoint_error * flow_valid_occ)[:, :, 0],
-          cmap='viridis',
-          vmin=0,
-          vmax=40)
-      save_fig('flow_error', plot_dir)
+      plt.imshow((predicted_occlusion[:, :, 0]) * 255, cmap='Greys')
+      save_fig('predicted_occlusion', plot_dir)
 
-  plt.imshow((predicted_occlusion[:, :, 0]) * 255, cmap='Greys')
-  save_fig('predicted_occlusion', plot_dir)
-
-  if ground_truth_occlusion is not None:
-      plt.imshow((ground_truth_occlusion[:, :, 0]) * 255, cmap='Greys')
-      save_fig('ground_truth_occlusion', plot_dir)
-
+      if ground_truth_occlusion is not None:
+          plt.imshow((ground_truth_occlusion[:, :, 0]) * 255, cmap='Greys')
+          save_fig('ground_truth_occlusion', plot_dir)
 
   plt.close('all')
 

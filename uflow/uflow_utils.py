@@ -688,6 +688,7 @@ def compute_loss(
   num_pairs = sum(
       [1.0 for (i, j, c) in warps if c in compute_loss_for_these_flows])
 
+  print('warps: ', warps)
   # Iterate over image pairs.
   for key in warps:
     i, j, c = key
